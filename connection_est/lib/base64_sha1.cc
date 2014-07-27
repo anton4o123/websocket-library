@@ -32,6 +32,28 @@ char get_base64_char(unsigned int c) {
 	}
 }
 
+string generate_random_base64() {
+	string base64;
+	int ch;
+
+	for(int i=0;i<22;++i) {
+		ch=rand()/(RAND_MAX/64)+1;
+		if(ch>=1 && ch<=26) {
+			base64+=ch+64;
+		} else if(ch>=27 && ch<=52) {
+			base64+=ch+70;
+		} else if(ch>=53 && ch<=62) {
+			base64+=ch-5;
+		} else if(ch==63) {
+			base64+="+";
+		} else {
+			base64+="/";
+		}
+	}
+	base64+="==";
+	return base64;
+}
+
 string base64_encode_sha1(string unencoded) {
 	string base;
 	unsigned int num=0;
