@@ -1,54 +1,68 @@
 #include <cstdio>
-#include <sstream>
-#include <iomanip>
-#include "lib/base64_sha1.hh"
-#include <openssl/sha.h>
-
-string create_opening_handshake(string ip_address, string websocket_key) {
-	string get;
-
-	get+="GET /chat HTTP/1.1\r\n";
-	get+="Host: "+ip_address+"\r\n";
-	get+="Upgrade: websocket\r\n";
-	get+="Connection: Upgrade\r\n";
-	get+="Sec-WebSocket-Key: "+websocket_key+"\r\n";
-	get+="Origin: "+ip_address+"\r\n";
-	get+="Sec-WebSocket-Protocol: chat, superchat\r\n";
-	get+="Sec-WebSocket-Version: 13\r\n\r\n";
-	return get;
-}
-
-string get_accept(string websocket_key) {
-	const char *GUID="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-	unsigned char* c=new unsigned char[SHA_DIGEST_LENGTH];
-	stringstream accept_hex;
-	accept_hex.fill('0');
-	accept_hex << hex;
-
-	websocket_key+=GUID;
-	c=SHA1((unsigned char*)websocket_key.c_str(), websocket_key.size(), NULL);
-	for(int i=0;i<20;++i) {
-		accept_hex << setw(2) << (unsigned int)c[i];
-	}
-	return base64_encode_sha1(accept_hex.str());
-}
+#include <unistd.h>
+#include <netdb.h>
+#include "lib/websock_lib.hh"
 
 int main(int argc, char const *argv[])
 {
 	srand((unsigned)time(NULL));
 	string key;
+	string hostname(argv[1]);
+	string get_request;
+	struct hostent *h;
+	struct sockaddr_in sin;
+	int fd;
+	ssize_t remaining, n_written;
+	const char* cp;
+	char buf[1024];
 
-/*	cin >> key;
+	h=gethostbyname(hostname.c_str());
 
-	c=SHA1((unsigned char*)key.c_str(), key.size(), NULL);
-
-	for(int i=0;i<20;++i) {
-		printf("%02x", c[i]);
+	if( (fd=socket(AF_INET, SOCK_STREAM, 0))<0) {
+		perror("socket error");
+		return -1;
 	}
-	printf("\n");*/
+
+	sin.sin_family=AF_INET;
+	sin.sin_port=htons(80);
+	sin.sin_addr=*(struct in_addr*)h->h_addr;
+
+	if(connect(fd, (struct sockaddr*)&sin, sizeof(sin))<0) {
+		perror("connect error");
+		close(fd);
+		return -1;
+	}
 
 	key+=generate_random_base64();
-	cout << create_opening_handshake("127.0.0.1", key) << endl;
+	get_request=create_opening_handshake(hostname, key);
+
+	cp=get_request.c_str();
+	remaining=get_request.size();
+
+	while(remaining) {
+		if( (n_written=send(fd, cp, remaining, 0))<=0) {
+			perror("send");
+			return 1;
+		}
+		remaining-=n_written;
+		cp+=n_written;
+	}
+
+	cout << get_request << endl;
+
+	while(1) {
+		ssize_t result=recv(fd, buf, sizeof(buf), 0);
+		if(result<0) {
+			perror("recv");
+			close(fd);
+			return 1;
+		} else if(result==0) {
+			break;
+		}
+		fwrite(buf, 1, result, stdout);
+	}
+
 	cout << get_accept(key) << endl;
+	close(fd);
 	return 0;
 }

@@ -1,13 +1,13 @@
-all: echo clean
+all: cli clean
 
-base64_sha1.o: lib/base64_sha1.hh lib/base64_sha1.cc
-	g++ -c lib/base64_sha1.cc
+websock_lib.o: lib/websock_lib.hh lib/websock_lib.cc
+	g++ -c lib/websock_lib.cc
 
-main.o: echocli.cc
-	g++ -c echocli.cc -o main.o
+echocli.o: echocli.cc
+	g++ -c echocli.cc
 
-echo: base64_sha1.o main.o
-	g++ base64_sha1.o main.o -o echo -lcrypto
+cli: websock_lib.o echocli.o
+	g++ websock_lib.o echocli.o -o cli -lcrypto
 
 clean:
 	rm -rf *.o
