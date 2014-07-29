@@ -49,6 +49,7 @@ int main(int argc, char const *argv[])
 	}
 
 	cout << get_request << endl;
+	cout << get_accept(key) << endl;
 
 	while(1) {
 		ssize_t result=recv(fd, buf, sizeof(buf), 0);
@@ -62,7 +63,6 @@ int main(int argc, char const *argv[])
 		fwrite(buf, 1, result, stdout);
 	}
 
-	cout << get_accept(key) << endl;
 	close(fd);
 	return 0;
 }

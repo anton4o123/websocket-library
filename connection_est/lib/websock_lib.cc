@@ -81,7 +81,7 @@ string base64_encode_sha1(string unencoded) {
 string create_opening_handshake(string hostname, string websocket_key) {
 	string get;
 
-	get+="GET /chat HTTP/1.1\r\n";
+	get+="GET / HTTP/1.1\r\n";
 	get+="Host: "+hostname+"\r\n";
 	get+="Upgrade: websocket\r\n";
 	get+="Connection: Upgrade\r\n";
