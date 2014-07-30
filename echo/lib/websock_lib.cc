@@ -13,6 +13,7 @@ unsigned int convert_to_dec(char c) {
 			case 'f': return 15;
 		}
 	}
+	return 16;//error
 }
 
 char get_base64_char(unsigned int c) {
@@ -215,7 +216,7 @@ void WebSocket::send_text(string data) {
 	frame[1]=frame[1]|(1<<2);
 	mask=(rand()/(RAND_MAX/2)+1)*(rand());
 	memcpy(frame+2, &mask, sizeof(unsigned int));
-	for(int i=0;i<data.size();++i) {
+	for(unsigned int i=0;i<data.size();++i) {
 		data_to_be_masked[i]^=(frame[(i+1)%4+1]);
 	}
 	strcat(frame, data_to_be_masked);
