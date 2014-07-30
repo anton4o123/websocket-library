@@ -77,7 +77,7 @@ string base64_encode_sha1(string unencoded) {
 	base+='=';
 	return base;
 }
-
+/*
 string create_opening_handshake(string hostname, string websocket_key) {
 	string get;
 
@@ -106,3 +106,27 @@ string get_accept(string websocket_key) {
 	}
 	return base64_encode_sha1(accept_hex.str());
 }
+
+bool approve_server_handshake(string handshake, string expected_accept) {
+	string delim("\r\n");
+	string token;
+	size_t pos=0;
+	bool http=false, key=false;
+
+	while((pos=handshake.find(delim))!=string::npos) {
+		token=handshake.substr(0, pos);
+		if(token.find("HTTP/1.1 101")!=string::npos) {
+			http=true;
+		}
+
+		if(token.find("Sec-WebSocket-Accept")!=string::npos) {
+			token.erase(0, 22);
+			if(token==expected_accept) {
+				key=true;
+			}
+		}
+		handshake.erase(0, pos+delim.length());
+	}
+	
+	return key && http;
+}*/

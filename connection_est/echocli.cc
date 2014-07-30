@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstring>
 #include <unistd.h>
 #include <netdb.h>
 #include "lib/websock_lib.hh"
@@ -6,7 +7,7 @@
 int main(int argc, char const *argv[])
 {
 	srand((unsigned)time(NULL));
-	string key;
+/*	string key;
 	string hostname(argv[1]);
 	string get_request;
 	struct hostent *h;
@@ -15,6 +16,9 @@ int main(int argc, char const *argv[])
 	ssize_t remaining, n_written;
 	const char* cp;
 	char buf[1024];
+	char server_handshake[1024];
+	memset(server_handshake, '\0', 1024);
+	memset(buf, '\0', 1024);
 
 	h=gethostbyname(hostname.c_str());
 
@@ -51,8 +55,13 @@ int main(int argc, char const *argv[])
 	cout << get_request << endl;
 	cout << get_accept(key) << endl;
 
-	while(1) {
+	bool server_receiving=true;
+	while(server_receiving) {
 		ssize_t result=recv(fd, buf, sizeof(buf), 0);
+		if(buf[strlen(buf)-1]=='\n' && buf[strlen(buf)-2]=='\r' && buf[strlen(buf)-3]=='\n' && buf[strlen(buf)-4]=='\r') {
+			server_receiving=false;
+		}
+
 		if(result<0) {
 			perror("recv");
 			close(fd);
@@ -60,9 +69,10 @@ int main(int argc, char const *argv[])
 		} else if(result==0) {
 			break;
 		}
-		fwrite(buf, 1, result, stdout);
+		memcpy(server_handshake, buf, strlen(buf));
 	}
+	cout << approve_server_handshake(server_handshake, get_accept(key)) << endl;
 
-	close(fd);
+	close(fd);*/
 	return 0;
 }
