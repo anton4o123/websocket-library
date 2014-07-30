@@ -5,22 +5,35 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <unistd.h>
 #include <ctime>
+#include <netdb.h>
 #include <openssl/sha.h>
 using namespace std;
+
+const short WEB_WS=0;
+const short WEB_WSS=1;
+const int MAX_ACCEPT=4096;
 
 unsigned int convert_to_dec(char c);
 char get_base64(unsigned int c);
 string generate_random_base64();
 string base64_encode_sha1(string unencoded);
-/*
-string create_opening_handshake(string hostname, string websocket_key);
-string get_accept(string websocket_key);
-bool approve_server_handshake(string handshake, string expected_accept);
-*/
+
 class WebSocket {
-	
+	int fd;
+	short secure_;
+
+	string create_opening_handshake(string hostname, string websocket_key);
+	string get_accept(string websocket_key);
+	bool approve_server_handshake(string handshake, string expected_accept);
+public:
+	WebSocket(short secure);
+	void connect_to(string hostname);
+	void disconnect();
 };
 
 #endif

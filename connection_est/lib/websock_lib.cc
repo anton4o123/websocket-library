@@ -77,8 +77,8 @@ string base64_encode_sha1(string unencoded) {
 	base+='=';
 	return base;
 }
-/*
-string create_opening_handshake(string hostname, string websocket_key) {
+
+string WebSocket::create_opening_handshake(string hostname, string websocket_key) {
 	string get;
 
 	get+="GET / HTTP/1.1\r\n";
@@ -92,7 +92,7 @@ string create_opening_handshake(string hostname, string websocket_key) {
 	return get;
 }
 
-string get_accept(string websocket_key) {
+string WebSocket::get_accept(string websocket_key) {
 	const char *GUID="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 	unsigned char* c=new unsigned char[SHA_DIGEST_LENGTH];
 	stringstream accept_hex;
@@ -107,7 +107,7 @@ string get_accept(string websocket_key) {
 	return base64_encode_sha1(accept_hex.str());
 }
 
-bool approve_server_handshake(string handshake, string expected_accept) {
+bool WebSocket::approve_server_handshake(string handshake, string expected_accept) {
 	string delim("\r\n");
 	string token;
 	size_t pos=0;
@@ -129,4 +129,78 @@ bool approve_server_handshake(string handshake, string expected_accept) {
 	}
 	
 	return key && http;
-}*/
+}
+
+WebSocket::WebSocket(short secure)
+: secure_(secure) {}
+
+void WebSocket::connect_to(string hostname) {
+	struct hostent *h;
+	struct sockaddr_in sin;
+	string key;
+	string get_request;
+	const char *cp;
+	ssize_t n_written;
+	char buf[MAX_ACCEPT];
+
+	h=gethostbyname(hostname.c_str());
+	if( (fd=socket(AF_INET, SOCK_STREAM, 0))<0) {
+		perror("socket error");
+		return;
+	}
+
+	sin.sin_family=AF_INET;
+	sin.sin_addr=*(struct in_addr*)h->h_addr;
+	if(secure_==WEB_WS) {
+		sin.sin_port=htons(80);
+	} else if(secure_==WEB_WSS) {
+		sin.sin_port=htons(443);
+	}
+
+	if(connect(fd, (struct sockaddr*)&sin, sizeof(sin))<0) {
+		perror("connect error");
+		return;
+	}
+
+	key+=generate_random_base64();
+	get_request+=create_opening_handshake(hostname, key);
+	cp=get_request.c_str();
+
+	ssize_t remaining=get_request.size();
+	while(remaining) {
+		if( (n_written=send(fd, cp, remaining, 0))<=0) {
+			perror("send");
+			close(fd);
+			return;
+		}
+		remaining-=n_written;
+		cp+=n_written;
+	}
+
+	bool server_receiving=true;
+	while(server_receiving) {
+		ssize_t result=recv(fd, buf, sizeof(buf), 0);
+		if(buf[strlen(buf)-1]=='\n' && buf[strlen(buf)-2]=='\r' && buf[strlen(buf)-3]=='\n' && buf[strlen(buf)-4]=='\r') {
+			server_receiving=false;
+		}
+
+		if(result<0) {
+			perror("recv");
+			close(fd);
+			return;
+		} else if(result==0) {
+			break;
+		}
+	}
+
+	if(approve_server_handshake(buf, get_accept(key))) {
+		cout << "connected" << endl;
+	} else {
+		cout << "connection failed" << endl;
+		close(fd);
+	}
+}
+
+void WebSocket::disconnect() {
+	close(fd);
+}
