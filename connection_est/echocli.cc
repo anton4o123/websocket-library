@@ -6,6 +6,7 @@ int main(int argc, char const *argv[])
 	WebSocket wb(WEB_WS);
 
 	wb.connect_to(argv[1]);
+	wb.send_text("haha");
 
 	wb.disconnect();
 	return 0;

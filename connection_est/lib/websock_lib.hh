@@ -17,6 +17,7 @@ using namespace std;
 const short WEB_WS=0;
 const short WEB_WSS=1;
 const int MAX_ACCEPT=4096;
+const int CHUNK_SIZE=512;
 
 unsigned int convert_to_dec(char c);
 char get_base64(unsigned int c);
@@ -33,6 +34,7 @@ class WebSocket {
 public:
 	WebSocket(short secure);
 	void connect_to(string hostname);
+	void send_text(string data);
 	void disconnect();
 };
 

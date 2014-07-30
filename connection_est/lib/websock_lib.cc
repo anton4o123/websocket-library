@@ -201,6 +201,27 @@ void WebSocket::connect_to(string hostname) {
 	}
 }
 
+void WebSocket::send_text(string data) {
+	char frame[data.size()/CHUNK_SIZE+CHUNK_SIZE];
+	char *data_to_be_masked=(char*)malloc(sizeof(char)*data.size());
+	memset(frame, '\0', data.size()/CHUNK_SIZE+CHUNK_SIZE);
+	unsigned int mask;
+
+	data_to_be_masked=(char*)data.c_str();
+
+	frame[0]=frame[0]|(1<<7);
+	frame[0]=frame[0]|1;
+	frame[1]=frame[1]|(1<<7);
+	frame[1]=frame[1]|(1<<2);
+	mask=(rand()/(RAND_MAX/2)+1)*(rand());
+	memcpy(frame+2, &mask, sizeof(unsigned int));
+	for(int i=0;i<data.size();++i) {
+		data_to_be_masked[i]^=(frame[(i+1)%4+1]);
+	}
+	strcat(frame, data_to_be_masked);
+	write(fd, frame, 10);
+}
+
 void WebSocket::disconnect() {
 	close(fd);
 }
