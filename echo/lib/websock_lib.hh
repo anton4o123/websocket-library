@@ -33,7 +33,7 @@ class WebSocket {
 	string create_opening_handshake(string hostname, string websocket_key);
 	string get_accept(string websocket_key);
 	bool approve_server_handshake(string handshake, string expected_accept);
-	char *create_frame(string data);
+	char *create_frame(string data, unsigned long *size);
 	void mask_data(char *frame, unsigned long size);
 public:
 	WebSocket(short secure);

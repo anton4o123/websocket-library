@@ -136,10 +136,10 @@ void WebSocket::mask_data(char *frame, unsigned long size) {
 	unsigned short index_ch_data=6;
 	unsigned short index_ch_mask=2;
 
-	if((frame[1]^254)==0) {
+	if((frame[1]^(char)254)==0 || (frame[1]^(char)126)==0) {
 		index_ch_data=8;
 		index_ch_mask=4;
-	} else if((frame[1]^255)==0) {
+	} else if((frame[1]^(char)255)==0 || (frame[1]^(char)127)==0) {
 		index_ch_data=14;
 		index_ch_mask=10;
 	}
@@ -151,25 +151,26 @@ void WebSocket::mask_data(char *frame, unsigned long size) {
 	}
 }
 
-char *WebSocket::create_frame(string data) {
-	int size_of_frame=6+data.size();
+char *WebSocket::create_frame(string data, unsigned long *size) {
+	*size=6+data.size();
 	short payload=0;
 	short mask_index_ch=2;
-	if(size_of_frame-6>125 && size_of_frame-6<65536) {
-		size_of_frame+=2;
+	if(*size-6>125 && *size-6<65536) {
+		*size+=2;
 		mask_index_ch+=2;
 		payload=1;
-	} else if(size_of_frame-6>=65536) {
-		size_of_frame+=8;
+	} else if(*size-6>=65536) {
+		*size+=8;
 		mask_index_ch+=8;
 		payload=2;
 	}
-	char *frame=(char*)malloc((size_of_frame+1)*sizeof(char));
-	char *data_to_be_masked=(char*)malloc(sizeof(char)*data.size());
-	memset(frame, '\0', size_of_frame+1);
+	char *frame=(char*)malloc((*size+1)*sizeof(char));
+	char *data_to_be_masked=(char*)malloc(sizeof(char)*(data.size()+1));
+	memset(frame, '\0', *size+1);
 	unsigned int mask;
 
 	data_to_be_masked=(char*)data.c_str();
+	data_to_be_masked[data.size()]='\0';
 
 	frame[0]|=(1<<7);
 	frame[0]|=1;
@@ -190,9 +191,9 @@ char *WebSocket::create_frame(string data) {
 
 	mask=(rand()/(RAND_MAX/2)+1)*(rand());
 	memcpy(frame+mask_index_ch, &mask, sizeof(unsigned int));
-	strcat(frame, data_to_be_masked);
+	memcpy(frame+mask_index_ch+4, data_to_be_masked, strlen(data_to_be_masked));
 	mask_data(frame, data.size());
-
+	
 	return frame;
 }
 
@@ -267,33 +268,56 @@ void WebSocket::connect_to(string hostname) {
 }
 
 void WebSocket::send_text(string data) {
-	char *frame=create_frame(data);
-int i=0;
-while(i<strlen(frame)) {
-	printf("%02x\n", frame[i]);
-	i++;
-}
-	write(fd, frame, strlen(frame));
+	unsigned long size=0;
+	char *frame=create_frame(data, &size);
+
+	write(fd, frame, size);
 	free(frame);
 }
 
 void WebSocket::receive(char *buf) {
-	read(fd, buf, 1000);
+//	read(fd, buf, 10000);
 	unsigned short frame_size=2;
 	unsigned long data_size=0;
+	unsigned short buf_change=0;
+	unsigned long remaining=0;
 
-	data_size=(unsigned long)buf[1];
-	data_size&=~(1<<7);
-	mask_data(buf, data_size);
-	if((buf[1]&(1<<7))) {
-		frame_size+=4;
-	}
+	read(fd, buf, 2);
+	buf_change+=2;
+
 	if((buf[1]^254)==0 || (buf[1]^126)==0) {
+		read(fd, buf+buf_change, 2);
+		buf_change+=2;
 		frame_size+=2;
+		memcpy(&data_size, buf+2, 2);
+		data_size=be16toh(data_size);
 	} else if((buf[1]^255)==0 || (buf[1]^127)==0) {
+		read(fd, buf+buf_change, 8);
+		buf_change+=8;
 		frame_size+=8;
+		memcpy(&data_size, buf+2, 8);
+		data_size=be64toh(data_size);
+	} else {
+		data_size=buf[1];
 	}
-	memmove(buf, buf+frame_size, strlen(buf));
+
+	if((buf[1]&(1<<7))) {
+		remaining+=4;
+		frame_size+=4;
+		data_size-128;
+	}
+
+	remaining+=data_size;
+	unsigned long check;
+	while(remaining) {
+		check=read(fd, buf+buf_change, remaining);
+		remaining-=check;
+		buf_change+=check;
+	}
+
+	mask_data(buf, data_size);
+	memmove(buf, buf+frame_size, data_size);
+	buf[data_size]='\0';
 }
 
 void WebSocket::disconnect() {
