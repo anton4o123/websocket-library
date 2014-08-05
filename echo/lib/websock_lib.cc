@@ -132,6 +132,70 @@ bool WebSocket::approve_server_handshake(string handshake, string expected_accep
 	return key && http;
 }
 
+void WebSocket::mask_data(char *frame, unsigned long size) {
+	unsigned short index_ch_data=6;
+	unsigned short index_ch_mask=2;
+
+	if((frame[1]^254)==0) {
+		index_ch_data=8;
+		index_ch_mask=4;
+	} else if((frame[1]^255)==0) {
+		index_ch_data=14;
+		index_ch_mask=10;
+	}
+
+	if(frame[1]&(1<<7)) {
+		for(unsigned long i=0;i<size;++i) {
+			frame[i+index_ch_data]^=frame[i%4+index_ch_mask];
+		}
+	}
+}
+
+char *WebSocket::create_frame(string data) {
+	int size_of_frame=6+data.size();
+	short payload=0;
+	short mask_index_ch=2;
+	if(size_of_frame-6>125 && size_of_frame-6<65536) {
+		size_of_frame+=2;
+		mask_index_ch+=2;
+		payload=1;
+	} else if(size_of_frame-6>=65536) {
+		size_of_frame+=8;
+		mask_index_ch+=8;
+		payload=2;
+	}
+	char *frame=(char*)malloc((size_of_frame+1)*sizeof(char));
+	char *data_to_be_masked=(char*)malloc(sizeof(char)*data.size());
+	memset(frame, '\0', size_of_frame+1);
+	unsigned int mask;
+
+	data_to_be_masked=(char*)data.c_str();
+
+	frame[0]|=(1<<7);
+	frame[0]|=1;
+
+	if(payload==1) {
+		frame[1]|=126;
+		unsigned short payload_length=htobe16(data.size());
+		memcpy(frame+2, &payload_length, sizeof(unsigned short));
+	} else if(payload==2) {
+		frame[1]|=127;
+		unsigned long payload_long_length=htobe64(data.size());
+		memcpy(frame+2, &payload_long_length, sizeof(unsigned long));
+	} else {
+		unsigned short length=data.size();
+		memcpy(frame+1, &length, 1);
+	}
+	frame[1]|=(1<<7);
+
+	mask=(rand()/(RAND_MAX/2)+1)*(rand());
+	memcpy(frame+mask_index_ch, &mask, sizeof(unsigned int));
+	strcat(frame, data_to_be_masked);
+	mask_data(frame, data.size());
+
+	return frame;
+}
+
 WebSocket::WebSocket(short secure)
 : secure_(secure) {}
 
@@ -194,7 +258,7 @@ void WebSocket::connect_to(string hostname) {
 		}
 	}
 
-	if(approve_server_handshake(buf, get_accept(key))) {
+	if(approve_server_handshake(buf, get_accept(key))) { 
 		cout << "connected" << endl;
 	} else {
 		cout << "connection failed" << endl;
@@ -203,24 +267,33 @@ void WebSocket::connect_to(string hostname) {
 }
 
 void WebSocket::send_text(string data) {
-	char frame[data.size()/CHUNK_SIZE+CHUNK_SIZE];
-	char *data_to_be_masked=(char*)malloc(sizeof(char)*data.size());
-	memset(frame, '\0', data.size()/CHUNK_SIZE+CHUNK_SIZE);
-	unsigned int mask;
+	char *frame=create_frame(data);
+int i=0;
+while(i<strlen(frame)) {
+	printf("%02x\n", frame[i]);
+	i++;
+}
+	write(fd, frame, strlen(frame));
+	free(frame);
+}
 
-	data_to_be_masked=(char*)data.c_str();
+void WebSocket::receive(char *buf) {
+	read(fd, buf, 1000);
+	unsigned short frame_size=2;
+	unsigned long data_size=0;
 
-	frame[0]=frame[0]|(1<<7);
-	frame[0]=frame[0]|1;
-	frame[1]=frame[1]|(1<<7);
-	frame[1]=frame[1]|(1<<2);
-	mask=(rand()/(RAND_MAX/2)+1)*(rand());
-	memcpy(frame+2, &mask, sizeof(unsigned int));
-	for(unsigned int i=0;i<data.size();++i) {
-		data_to_be_masked[i]^=(frame[(i+1)%4+1]);
+	data_size=(unsigned long)buf[1];
+	data_size&=~(1<<7);
+	mask_data(buf, data_size);
+	if((buf[1]&(1<<7))) {
+		frame_size+=4;
 	}
-	strcat(frame, data_to_be_masked);
-	write(fd, frame, 10);
+	if((buf[1]^254)==0 || (buf[1]^126)==0) {
+		frame_size+=2;
+	} else if((buf[1]^255)==0 || (buf[1]^127)==0) {
+		frame_size+=8;
+	}
+	memmove(buf, buf+frame_size, strlen(buf));
 }
 
 void WebSocket::disconnect() {
