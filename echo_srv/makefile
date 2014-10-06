@@ -1,7 +1,7 @@
 all: server clean 
 
-lib.o: ../echo/lib/websock_lib.cc ../echo/lib/websock_lib.hh
-	g++ -c ../echo/lib/websock_lib.cc -o lib.o 
+lib.o: ../lib/websock_lib.cc ../lib/websock_lib.hh
+	g++ -c ../lib/websock_lib.cc -o lib.o 
 
 header.o: echo_server.cc
 	g++ -c echo_server.cc -o header.o

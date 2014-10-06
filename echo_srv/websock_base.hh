@@ -1,7 +1,7 @@
 #ifndef __WEBSOCK_BASE__
 #define __WEBSOCK_BASE__
 
-#include "../echo/lib/websock_lib.hh"
+#include "../lib/websock_lib.hh"
 
 using namespace std;
 
