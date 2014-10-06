@@ -1,4 +1,4 @@
-#include "lib/websock_lib.hh"
+#include "../lib/websock_lib.hh"
 
 int main(int argc, char const *argv[])
 {
@@ -7,6 +7,10 @@ int main(int argc, char const *argv[])
 	char *buf=(char*)malloc(65650*sizeof(char));
 	string echo_str;
 
+	if(argc < 2) {
+		cerr << "No argument!" << endl;
+		return -1;
+	}
 	wb.connect_to(argv[1]);
 
 	while(true) {
