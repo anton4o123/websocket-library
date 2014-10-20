@@ -149,7 +149,7 @@ int WebSock_Server::accept_conn()
 	FD_ZERO(&rset);
 	FD_SET(connfd, &rset);
 
-	if(select(8*sizeof(rset),&rset,NULL,NULL,NULL)<0)
+	if(select(1+sizeof(rset),&rset,NULL,NULL,NULL)<0)
 	{
 		perror("select()");
 		close(connfd);
