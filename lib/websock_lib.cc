@@ -168,7 +168,7 @@ string WebSocket::create_opening_handshake(string hostname, string websocket_key
 	get+="Connection: Upgrade\r\n";
 	get+="Sec-WebSocket-Key: "+websocket_key+"\r\n";
 	get+="Origin: "+hostname+"\r\n";
-	get+="Sec-WebSocket-Protocol: chat, superchat\r\n";
+//	get+="Sec-WebSocket-Protocol: chat\r\n";
 	get+="Sec-WebSocket-Version: 13\r\n\r\n";
 	return get;
 }
