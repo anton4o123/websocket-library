@@ -305,7 +305,7 @@ void WebSocket::receive(char *buf) {
 	if((buf[1]&(1<<7))) {
 		remaining+=4;
 		frame_size+=4;
-		data_size-128;
+		data_size-=128;
 	}
 
 	remaining+=data_size;
